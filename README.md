@@ -1,7 +1,6 @@
 <p align="center">
   <b>Apprentice Software Engineer @ Accenture</b><br>
   TBZ Student in Zurich<br>
-  Building web apps, automations, and small AI tools. Always learning.
 </p>
 
 ---
