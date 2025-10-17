@@ -6,7 +6,7 @@
 
 <h1 align="center">🧰 Skills</h1> 
 <p align="center">
-  <img src="https://skillicons.dev/icons?i=html,css,js,python,github,vscode" />
+  <img src="https://skillicons.dev/icons?i=html,css,js,python,github,vscode,apple,arduino,firebase,flask" />
 </p>
 
 
