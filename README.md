@@ -38,9 +38,7 @@
 <h3 align="center">🔥   My Statss :</h3>
 
 ###
-
-![Top Langs](https://github-readme-stats.vercel.app/api/top-langs?username=zinoos&layout=compact&count_private=true&exclude_repo=old-test,docs&hide=css)
-
+![Top Langs](https://github-readme-stats.vercel.app/api/top-langs?username=zinoos&layout=compact&count_private=true&hide_border=false&cache_seconds=1800)
 
 
 ###
