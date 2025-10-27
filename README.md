@@ -39,7 +39,7 @@
 
 ###
 
-![Top Langs](https://github-readme-stats.vercel.app/api/top-langs?username=zinoos&layout=compact&count_private=true&exclude_repo=old-test,docs&hide=html,css)
+![Top Langs](https://github-readme-stats.vercel.app/api/top-langs?username=zinoos&layout=compact&count_private=true&exclude_repo=old-test,docs&hide=css)
 
 
 
