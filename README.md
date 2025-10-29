@@ -38,7 +38,9 @@
 <h3 align="center">🔥   My Statss :</h3>
 
 ###
-![Top Langs](https://github-readme-stats.vercel.app/api/top-langs?username=zinoos&layout=compact&count_private=true&hide_border=false&cache_seconds=1800)
+<div align="center">
+  <img src="https://github-readme-activity-graph.vercel.app/graph?username=zinoos&radius=16&theme=react&area=true&order=5" height="300" alt="activity-graph graph"  />
+</div>
 
 
 ###
