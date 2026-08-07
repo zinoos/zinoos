@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-import json, sys, subprocess, os
+"""Generate DeepSeek stats SVG card using the public Tokscale cloud API.
+Aggregates data from ALL machines that submitted to your Tokscale account."""
+
+import json, sys, os
+from urllib.request import urlopen
+
+API = "https://tokscale.ai/api/users/zinoos"
 
 def fmt_n(n):
     if n >= 1_000_000_000: return f"{n/1e9:.1f}B"
@@ -18,31 +24,31 @@ def fmt_num(n):
     if n >= 1_000: return f"{n/1e3:.1f}K"
     return str(int(n))
 
-def run_tokscale():
-    result = subprocess.run(
-        ["npx", "tokscale@latest", "models", "--json"],
-        capture_output=True, text=True, timeout=30
-    )
-    return json.loads(result.stdout)
+def fetch_stats():
+    with urlopen(API) as resp:
+        data = json.loads(resp.read())
 
-def get_deepseek_stats(data):
-    entries = [e for e in data.get("entries", []) if "deepseek" in e.get("model", "").lower()]
-    if not entries:
-        raise SystemExit("No DeepSeek stats found")
-    total_tokens = sum(e["input"] + e["output"] + e.get("cacheRead", 0) + e.get("cacheWrite", 0) + e.get("reasoning", 0) for e in entries)
-    total_cost = sum(e["cost"] for e in entries)
-    total_msgs = sum(e["messageCount"] for e in entries)
+    deepseek_models = [m for m in data.get("modelUsage", [])
+                       if "deepseek" in m.get("model", "").lower()]
+
+    total_tokens = int(sum(m["tokens"] for m in deepseek_models))
+    total_cost = sum(m["cost"] for m in deepseek_models)
+
+    total_msgs = 0
+    for day in data.get("contributions", []):
+        for client_data in day.get("clients", []):
+            for model_id, model_info in client_data.get("models", {}).items():
+                if "deepseek" in model_id.lower():
+                    total_msgs += model_info.get("messages", 0)
 
     models = []
-    for e in entries:
-        model_name = e["model"].replace("deepseek/", "").replace("deepseek-", "")
-        client = e["client"]
-        tokens = e["input"] + e["output"] + e.get("cacheRead", 0) + e.get("cacheWrite", 0) + e.get("reasoning", 0)
+    for m in deepseek_models:
+        label = m["model"].replace("deepseek/", "").replace("deepseek-", "")
         models.append({
-            "label": f"{client}/{model_name}",
-            "tokens": tokens,
-            "cost": e["cost"],
-            "msgs": e["messageCount"],
+            "label": label,
+            "tokens": int(m["tokens"]),
+            "cost": m["cost"],
+            "pct": m["percentage"],
         })
 
     models.sort(key=lambda x: x["tokens"], reverse=True)
@@ -53,16 +59,13 @@ PALETTE = ["#4B32C2", "#6C5CE7", "#A29BFE", "#7C6FF7", "#5F4BD4", "#8B7CF6"]
 def gen_svg(stats):
     N = len(stats["models"])
     W, H = 720, 200 + N * 26
-
     BAR_X = 300
     BAR_W = 390
     BAR_H = 16
     BAR_GAP = 10
     BAR_AREA_Y = 155
-
     max_tokens = stats["models"][0]["tokens"]
-    total_all = stats["tokens"]
-    COLORS = {"kilo": "#7C6FF7", "opencode": "#4B32C2", "kimi": "#A29BFE"}
+    total = stats["tokens"]
 
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">
   <defs>
@@ -70,12 +73,7 @@ def gen_svg(stats):
       <stop offset="0%" stop-color="#0d1117"/>
       <stop offset="100%" stop-color="#161b22"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#4B32C2"/>
-      <stop offset="100%" stop-color="#8B7CF6"/>
-    </linearGradient>
   </defs>
-
   <rect x="0" y="0" width="{W}" height="{H}" rx="12" fill="url(#bg)"/>
   <rect x="0" y="0" width="{W}" height="{H}" rx="12" fill="none" stroke="#21262d" stroke-width="1"/>
 
@@ -98,14 +96,11 @@ def gen_svg(stats):
     for i, m in enumerate(stats["models"]):
         bar_w = max((m["tokens"] / max_tokens) * BAR_W, 3)
         y = BAR_AREA_Y + i * (BAR_H + BAR_GAP)
-        client = m["label"].split("/")[0] if "/" in m["label"] else ""
-        c = COLORS.get(client, PALETTE[i % len(PALETTE)])
-
+        c = PALETTE[i % len(PALETTE)]
         short = m["label"]
         if len(short) > 22:
             short = short[:21] + "…"
-
-        pct_str = f" {m['tokens']/total_all*100:.0f}%" if m['tokens'] > 0 else ""
+        pct_str = f" {(m['tokens']/total)*100:.0f}%"
 
         svg += f'''
   <rect x="{BAR_X}" y="{y}" width="{bar_w:.1f}" height="{BAR_H}" rx="4" fill="{c}" opacity="0.9"/>
@@ -114,14 +109,13 @@ def gen_svg(stats):
 '''
 
     svg += f'''
-  <text x="28" y="{H - 14}" fill="#484f58" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="9">via Kilo + OpenCode + Kimi  ·  <tspan fill="#6C5CE7">tokscale</tspan></text>
+  <text x="28" y="{H - 14}" fill="#484f58" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="9">all machines  ·  <tspan fill="#6C5CE7">tokscale</tspan> cloud API</text>
 </svg>'''
     return svg
 
 def main():
     out_path = sys.argv[1] if len(sys.argv) > 1 else "deepseek-card.svg"
-    data = run_tokscale()
-    stats = get_deepseek_stats(data)
+    stats = fetch_stats()
     svg = gen_svg(stats)
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     with open(out_path, "w") as f:
